@@ -1,0 +1,39 @@
+name: ci-cd test
+
+# 1. 트리거: 언제 실행될지 정의합니다.
+on:
+  push:
+    branches:
+      - "main"                # 프로덕션
+      - "develop"             # 개발 브랜치
+  pull_request:
+    branches: [ "main" ] # main 브랜치로 PR이 올 때 실행
+
+# 2. 작업(Jobs): 실행할 작업 단위를 정의합니다.
+jobs:
+  build-and-test:
+    # 실행 환경을 지정합니다 (보통 최신 우분투 사용)
+    runs-on: ubuntu-latest
+
+    # 3. 단계(Steps): 순차적으로 실행될 명령어들입니다.
+    steps:
+      # (1) 저장소의 코드를 내려받습니다. (필수 단계)
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # (2) 언어 실행 환경을 설정합니다. (예: Python, Node.js 등)
+      # 여기서는 예시로 'Hello World'를 출력하지만, 실제로는 언어 설정을 합니다.
+      - name: Set up Environment
+        run: echo "환경 설정 단계 (예: actions/setup-node 등)"
+
+      # (3) 의존성 패키지를 설치합니다.
+      - name: Install dependencies
+        run: |
+          echo "패키지 설치 중..."
+          # npm install 또는 pip install -r requirements.txt 등이 여기에 들어갑니다.
+
+      # (4) 테스트를 실행합니다.
+      - name: Run Tests
+        run: |
+          echo "테스트 실행 중..."
+          # npm test 또는 pytest 등이 여기에 들어갑니다.
