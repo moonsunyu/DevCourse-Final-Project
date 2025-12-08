@@ -1,39 +1,186 @@
-name: ci-cd test
+name: Minimal CI Test
 
-# 1. 트리거: 언제 실행될지 정의합니다.
 on:
   push:
-    branches:
-      - "main"                # 프로덕션
-      - "develop"             # 개발 브랜치
+    branches: [ main, develop ]
   pull_request:
-    branches: [ "main" ] # main 브랜치로 PR이 올 때 실행
+    branches: [ main, develop ]
+  workflow_dispatch:  # 수동 실행 버튼
 
-# 2. 작업(Jobs): 실행할 작업 단위를 정의합니다.
 jobs:
-  build-and-test:
-    # 실행 환경을 지정합니다 (보통 최신 우분투 사용)
+  # ===== Job 1: 프로젝트 구조 확인 =====
+  check-structure:
+    name: 프로젝트 구조 확인
     runs-on: ubuntu-latest
-
-    # 3. 단계(Steps): 순차적으로 실행될 명령어들입니다.
+    
     steps:
-      # (1) 저장소의 코드를 내려받습니다. (필수 단계)
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # (2) 언어 실행 환경을 설정합니다. (예: Python, Node.js 등)
-      # 여기서는 예시로 'Hello World'를 출력하지만, 실제로는 언어 설정을 합니다.
-      - name: Set up Environment
-        run: echo "환경 설정 단계 (예: actions/setup-node 등)"
-
-      # (3) 의존성 패키지를 설치합니다.
-      - name: Install dependencies
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: 프로젝트 폴더 확인
         run: |
-          echo "패키지 설치 중..."
-          # npm install 또는 pip install -r requirements.txt 등이 여기에 들어갑니다.
-
-      # (4) 테스트를 실행합니다.
-      - name: Run Tests
+          echo "📁 현재 프로젝트 구조:"
+          ls -la
+          
+      - name: 상세 구조 출력
         run: |
-          echo "테스트 실행 중..."
-          # npm test 또는 pytest 등이 여기에 들어갑니다.
+          echo ""
+          echo "📂 폴더 구조:"
+          find . -type d -not -path '*/\.*' | sort
+          
+      - name: 필수 폴더 체크
+        run: |
+          echo ""
+          echo "✅ 필수 폴더 확인:"
+          
+          [ -d "airflow" ] && echo "✅ airflow/" || echo "❌ airflow/"
+          [ -d "api" ] && echo "✅ api/" || echo "❌ api/"
+          [ -d "data" ] && echo "✅ data/" || echo "❌ data/"
+          [ -d ".github/workflows" ] && echo "✅ .github/workflows/" || echo "❌ .github/workflows/"
+
+  # ===== Job 2: README 확인 =====
+  check-readme:
+    name: README 파일 확인
+    runs-on: ubuntu-latest
+    needs: check-structure
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: 메인 README 확인
+        run: |
+          if [ -f "README.md" ]; then
+            echo "✅ README.md 파일 존재"
+            echo ""
+            echo "📄 README.md 내용 미리보기:"
+            head -n 15 README.md
+          else
+            echo "❌ README.md 파일이 없습니다"
+            exit 1
+          fi
+
+  # ===== Job 3: Python 환경 테스트 =====
+  test-python-setup:
+    name: Python 환경 테스트
+    runs-on: ubuntu-latest
+    needs: check-structure
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: Python 버전 확인
+        run: |
+          echo "🐍 Python 버전:"
+          python --version
+          echo ""
+          echo "📦 pip 버전:"
+          pip --version
+      
+      - name: 간단한 Python 코드 실행
+        run: |
+          echo ""
+          echo "✅ Python 실행 테스트:"
+          python -c "print('Hello from GitHub Actions!')"
+          python -c "import sys; print(f'Python path: {sys.executable}')"
+
+  # ===== Job 4: 파일 존재 확인 =====
+  check-files:
+    name: 주요 파일 확인
+    runs-on: ubuntu-latest
+    needs: check-structure
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: 파일 목록 확인
+        run: |
+          echo "📄 프로젝트 파일들:"
+          find . -type f -not -path '*/\.*' | head -20
+          
+      - name: Python 파일 찾기
+        run: |
+          echo ""
+          echo "🐍 Python 파일 검색:"
+          if find . -name "*.py" -not -path '*/\.*' | grep -q .; then
+            echo "✅ Python 파일 발견:"
+            find . -name "*.py" -not -path '*/\.*'
+          else
+            echo "⚠️ Python 파일이 아직 없습니다 (나중에 추가 예정)"
+          fi
+      
+      - name: YAML 파일 찾기
+        run: |
+          echo ""
+          echo "📝 YAML 파일 검색:"
+          if find . -name "*.yml" -o -name "*.yaml" | grep -q .; then
+            echo "✅ YAML 파일 발견:"
+            find . -name "*.yml" -o -name "*.yaml"
+          else
+            echo "⚠️ YAML 파일이 없습니다"
+          fi
+
+  # ===== Job 5: Git 정보 확인 =====
+  check-git-info:
+    name: Git 정보 확인
+    runs-on: ubuntu-latest
+    needs: check-structure
+    
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v3
+      
+      - name: Git 정보 출력
+        run: |
+          echo "📌 Git 정보:"
+          echo "브랜치: ${{ github.ref }}"
+          echo "커밋 SHA: ${{ github.sha }}"
+          echo "이벤트: ${{ github.event_name }}"
+          echo "작성자: ${{ github.actor }}"
+          echo ""
+          echo "📝 최근 커밋:"
+          git log -1 --pretty=format:"%h - %an, %ar : %s"
+
+  # ===== Job 6: 환경 정보 =====
+  check-environment:
+    name: 실행 환경 정보
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 시스템 정보
+        run: |
+          echo "💻 실행 환경:"
+          echo "OS: $(uname -s)"
+          echo "커널: $(uname -r)"
+          echo "아키텍처: $(uname -m)"
+          echo ""
+          echo "📊 시스템 리소스:"
+          echo "CPU: $(nproc) cores"
+          echo "메모리: $(free -h | awk '/^Mem:/ {print $2}')"
+          echo ""
+          echo "⏰ 현재 시각:"
+          date
+
+  # ===== Job 7: 성공 메시지 =====
+  success:
+    name: ✅ 테스트 완료
+    runs-on: ubuntu-latest
+    needs: [check-structure, check-readme, test-python-setup, check-files, check-git-info, check-environment]
+    
+    steps:
+      - name: 성공 메시지
+        run: |
+          echo "🎉🎉🎉 모든 테스트 통과! 🎉🎉🎉"
+          echo ""
+          echo "✅ 완료된 검사:"
+          echo "  - 프로젝트 구조 확인"
+          echo "  - README 파일 확인"
+          echo "  - Python 환경 테스트"
+          echo "  - 파일 존재 확인"
+          echo "  - Git 정보 확인"
+          echo "  - 실행 환경 확인"
+          echo ""
+          echo "🚀 GitHub Actions가 정상 작동합니다!"
+          echo ""
